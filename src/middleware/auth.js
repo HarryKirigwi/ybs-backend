@@ -29,7 +29,7 @@ export const protect = async (req, res, next) => {
         res.cookie('accessToken', token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
+          sameSite: 'none',
           maxAge: 15 * 60 * 1000
         });
       } catch (refreshError) {
