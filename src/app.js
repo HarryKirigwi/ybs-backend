@@ -50,7 +50,7 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.FRONTEND_URL, // Your production frontend URL
       process.env.FRONTEND_URL_WWW, // With www if applicable
-      'https://www.ybslimited.co.ke',
+      'www.ybslimited.co.ke',
       'www.ybslimited.co.ke',
       // Add any other domains you need
     ];
