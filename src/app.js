@@ -44,42 +44,27 @@ app.use(helmet({
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    // Allow requests with no origin (mobile apps, postman, etc.)
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
-      process.env.FRONTEND_URL, // Your production frontend URL
-      process.env.FRONTEND_URL_WWW, // With www if applicable
-      'www.ybslimited.co.ke',
-      'www.ybslimited.co.ke',
-      // Add any other domains you need
+      process.env.FRONTEND_URL || 'http://localhost:3000/',
+      'http://localhost:3001',
+      'https://ybslimited.co.ke', // Replace with your actual frontend domain
     ];
     
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.error(`CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true, // CRITICAL: This must be true for cookies
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Origin',
-    'X-Requested-With',
-    'Content-Type',
-    'Accept',
-    'Authorization',
-    'Cookie'
-  ],
-  exposedHeaders: ['Set-Cookie'],
-  optionsSuccessStatus: 200 // For legacy browser support
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
 
 app.use(cors(corsOptions));
-
-// Handle preflight requests explicitly
-app.options('*', cors(corsOptions));
 app.use(cookieParser());
 
 // Rate limiting
