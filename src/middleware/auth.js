@@ -2,14 +2,39 @@ import { verifyToken } from '../utils/helpers.js';
 import { prisma } from '../lib/prisma.js';
 import { AppError } from './errorHandler.js';
 import { CONSTANTS } from '../utils/constants.js';
+import jwt from 'jsonwebtoken';
 
 // Protect routes - require authentication
 export const protect = async (req, res, next) => {
   try {
-    // Get token from header
-    let token;
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    // Get token from cookie (prefer accessToken cookie)
+    let token = req.cookies?.accessToken;
+
+    // If not in cookie, fallback to Authorization header
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
+    }
+
+    // If no access token, try to refresh using refresh token
+    if (!token && req.cookies?.refreshToken) {
+      try {
+        const decodedRefresh = jwt.verify(req.cookies.refreshToken, process.env.JWT_REFRESH_SECRET);
+        // Generate new access token
+        token = jwt.sign(
+          { id: decodedRefresh.id },
+          process.env.JWT_SECRET,
+          { expiresIn: '15m' }
+        );
+        // Set new access token cookie
+        res.cookie('accessToken', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 15 * 60 * 1000
+        });
+      } catch (refreshError) {
+        return next(new AppError('Invalid refresh token. Please log in again.', 401));
+      }
     }
 
     if (!token) {
@@ -17,7 +42,7 @@ export const protect = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = verifyToken(token);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Get user from database
     const user = await prisma.user.findUnique({

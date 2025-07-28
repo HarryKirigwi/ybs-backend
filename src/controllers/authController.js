@@ -193,10 +193,23 @@ export const register = asyncHandler(async (req, res, next) => {
     fullName: combineNames(result.firstName, result.lastName),
   };
 
+  // Set HTTP-only cookies
+  res.cookie('accessToken', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 15 * 60 * 1000 // 15 minutes
+  });
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+
   res.status(201).json(successResponse({
     user: responseUser,
-    token,
-    refreshToken,
+    requiresPhoneVerification: true
   }, CONSTANTS.SUCCESS.REGISTRATION));
 });
 
@@ -253,10 +266,23 @@ export const login = asyncHandler(async (req, res, next) => {
   const token = generateToken({ id: user.id });
   const refreshToken = generateRefreshToken({ id: user.id });
 
+  // Set HTTP-only cookies
+  res.cookie('accessToken', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 15 * 60 * 1000 // 15 minutes
+  });
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+
   res.json(successResponse({
     user: userResponse,
-    token,
-    refreshToken,
+    message: 'Login successful'
   }, CONSTANTS.SUCCESS.LOGIN));
 });
 
@@ -564,17 +590,8 @@ export const getMe = asyncHandler(async (req, res) => {
 
 // Logout (client-side token removal, but we can log it)
 export const logout = asyncHandler(async (req, res) => {
-  // In a more sophisticated setup, you might maintain a blacklist of tokens
-  // or track active sessions in the database
-  
-  // Optional: Add token to blacklist in Redis
-  // const token = req.headers.authorization?.split(' ')[1];
-  // if (token) {
-  //   const decoded = verifyToken(token);
-  //   const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
-  //   await redis.setex(`blacklist:${token}`, expiresIn, 'true');
-  // }
-
+  res.clearCookie('accessToken');
+  res.clearCookie('refreshToken');
   res.json(successResponse(
     { loggedOut: true },
     CONSTANTS.SUCCESS.LOGOUT

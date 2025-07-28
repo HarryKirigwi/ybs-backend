@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import cookieParser from 'cookie-parser';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -49,7 +50,7 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.FRONTEND_URL || 'http://localhost:3000',
       'http://localhost:3001',
-      'https://your-frontend-domain.com', // Replace with your actual frontend domain
+      'https://ybslimited.co.ke', // Replace with your actual frontend domain
     ];
     
     if (allowedOrigins.includes(origin)) {
@@ -64,6 +65,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(cookieParser());
 
 // Rate limiting
 const limiter = rateLimit({
