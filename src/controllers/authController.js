@@ -590,13 +590,23 @@ export const getMe = asyncHandler(async (req, res) => {
 
 // Logout (client-side token removal, but we can log it)
 export const logout = asyncHandler(async (req, res) => {
-  res.clearCookie('accessToken');
-  res.clearCookie('refreshToken');
+  // Clear cookies (no need to pass values, just match the options used when setting them)
+  res.clearCookie('accessToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'none',
+  });
+
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'none',
+  });
+
   res.json(successResponse(
     { loggedOut: true },
     CONSTANTS.SUCCESS.LOGOUT
   ));
-
 });
 
 // Admin refresh token
