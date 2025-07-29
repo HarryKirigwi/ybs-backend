@@ -68,6 +68,10 @@ model User {
   accountStatus     AccountStatus @default(UNVERIFIED) @map("account_status")
   userLevel         UserLevel     @default(SILVER) @map("user_level")
   
+  // Phone verification fields
+  phoneVerified     Boolean       @default(false) @map("phone_verified")
+  phoneVerifiedAt   DateTime?     @map("phone_verified_at")
+  
   // Financial fields
   totalReferrals    Int           @default(0) @map("total_referrals")
   pendingEarnings   Decimal       @default(0) @db.Decimal(10, 2) @map("pending_earnings")

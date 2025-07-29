@@ -13,6 +13,7 @@ import {
   validateDateRange,
   validateRequiredFields,
 } from '../utils/validators.js';
+import { verificationService } from '../services/verificationService.js';
 
 // Generic validation middleware factory
 const createValidationMiddleware = (validatorFunction) => {
@@ -45,7 +46,37 @@ const createQueryValidationMiddleware = (validatorFunction) => {
 // User validation middleware
 export const validateRegistration = createValidationMiddleware(validateUserRegistration);
 export const validateLogin = createValidationMiddleware(validateUserLogin);
-export const validatePhoneVerify = createValidationMiddleware(validatePhoneVerification);
+export const validatePhoneVerify = (req, res, next) => {
+  const { action, phoneNumber, verificationCode } = req.body;
+
+  const errors = [];
+
+  if (!action || !['send', 'verify'].includes(action)) {
+    errors.push('Action must be either "send" or "verify"');
+  }
+
+  if (!phoneNumber) {
+    errors.push('Phone number is required');
+  }
+
+  if (action === 'verify' && !verificationCode) {
+    errors.push('Verification code is required for verification');
+  } else if (action === 'verify' && verificationCode.length !== 6) {
+    errors.push('Verification code must be 6 digits');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        message: 'Validation failed: ' + errors.join(', '),
+        details: errors,
+      },
+    });
+  }
+
+  next();
+};
 export const validateActivation = createValidationMiddleware(validateAccountActivation);
 export const validateWithdrawal = createValidationMiddleware(validateWithdrawalRequest);
 export const validatePasswordChangeData = createValidationMiddleware(validatePasswordChange);

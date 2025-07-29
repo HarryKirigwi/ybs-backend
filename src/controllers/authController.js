@@ -13,6 +13,7 @@ import {
 } from '../utils/helpers.js';
 import { generateUniqueReferralCode } from '../utils/codeGenerator.js';
 import { CONSTANTS } from '../utils/constants.js';
+import { verificationService } from '../services/verificationService.js';
 
 // Register new user
 export const register = asyncHandler(async (req, res, next) => {
@@ -348,87 +349,54 @@ export const adminLogin = asyncHandler(async (req, res, next) => {
   }, 'Admin login successful'));
 });
 
-// Verify phone number (if implementing SMS verification)
+// Updated verifyPhone to handle both send and verify actions
 export const verifyPhone = asyncHandler(async (req, res, next) => {
-  const { phoneNumber, verificationCode } = req.body;
+  const { action, phoneNumber, verificationCode } = req.body;
 
-  // This is a placeholder - implement actual SMS verification logic
-  // You would typically:
-  // 1. Check the verification code against stored code in Redis/database
-  // 2. Mark phone as verified
-  // 3. Update user status if needed
+  if (action === 'send') {
+    // Send verification code
+    try {
+      const result = await verificationService.sendVerificationCode(phoneNumber);
+      
+      res.json(successResponse(
+        { 
+          sent: true,
+          phoneNumber: result.phoneNumber,
+          // Show code in development for testing
+          code: process.env.NODE_ENV === 'development' ? result.code : undefined
+        },
+        'Verification code sent successfully'
+      ));
+    } catch (error) {
+      return next(new AppError(error.message, 400));
+    }
+  } else if (action === 'verify') {
+    // Verify the code
+    try {
+      const result = await verificationService.verifyCode(phoneNumber, verificationCode);
+      
+      // Update user's phone verification status
+      await prisma.user.update({
+        where: { phoneNumber: result.phoneNumber },
+        data: { 
+          phoneVerified: true,
+          phoneVerifiedAt: new Date()
+        }
+      });
 
-  const formattedPhone = formatPhoneNumber(phoneNumber);
-
-  const user = await prisma.user.findUnique({
-    where: { phoneNumber: formattedPhone }
-  });
-
-  if (!user) {
-    return next(new AppError('User not found', 404));
+      res.json(successResponse(
+        { 
+          verified: true,
+          phoneNumber: result.phoneNumber
+        },
+        'Phone number verified successfully'
+      ));
+    } catch (error) {
+      return next(new AppError(error.message, 400));
+    }
+  } else {
+    return next(new AppError('Invalid action. Use "send" or "verify".', 400));
   }
-
-  // Placeholder verification logic
-  // In production, you would:
-  // 1. Store verification codes in Redis with expiration
-  // 2. Send SMS using services like Africa's Talking, Twilio, etc.
-  // 3. Verify against the stored code
-  if (verificationCode !== '123456') { // Replace with actual verification
-    return next(new AppError('Invalid verification code', 400));
-  }
-
-  // In production, you might update a phoneVerified field
-  // await prisma.user.update({
-  //   where: { id: user.id },
-  //   data: { phoneVerified: true }
-  // });
-
-  res.json(successResponse(
-    { 
-      verified: true,
-      userId: user.id 
-    },
-    CONSTANTS.SUCCESS.PHONE_VERIFIED
-  ));
-});
-
-// Send verification code (placeholder for SMS implementation)
-export const sendVerificationCode = asyncHandler(async (req, res, next) => {
-  const { phoneNumber } = req.body;
-
-  const formattedPhone = formatPhoneNumber(phoneNumber);
-
-  // Check if user exists
-  const user = await prisma.user.findUnique({
-    where: { phoneNumber: formattedPhone }
-  });
-
-  if (!user) {
-    return next(new AppError('User not found', 404));
-  }
-
-  // Generate 6-digit verification code
-  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-  // In production, you would:
-  // 1. Store the code in Redis with 5-10 minute expiration
-  // 2. Send SMS using your preferred SMS service
-  // 3. Return success response without the actual code
-
-  // Placeholder SMS sending logic
-  console.log(`SMS: Your verification code is ${verificationCode}`);
-
-  // In production, store in Redis:
-  // await redis.setex(`verification:${formattedPhone}`, 600, verificationCode);
-
-  res.json(successResponse(
-    { 
-      sent: true,
-      // Remove this in production - only for testing
-      code: process.env.NODE_ENV === 'development' ? verificationCode : undefined
-    },
-    'Verification code sent successfully'
-  ));
 });
 
 // Change password
