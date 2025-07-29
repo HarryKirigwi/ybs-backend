@@ -24,6 +24,7 @@ export const getProfile = asyncHandler(async (req, res) => {
       lastName: true,
       createdAt: true,
       lastLogin: true,
+      phoneVerified: true,
       referrer: {
         select: {
           phoneNumber: true,

@@ -89,6 +89,7 @@ export const register = asyncHandler(async (req, res, next) => {
         referralCode: true,
         accountStatus: true,
         createdAt: true,
+        phoneVerified: true,
       },
     });
 
