@@ -590,9 +590,9 @@ export const getMe = asyncHandler(async (req, res) => {
 
 // Logout (client-side token removal, but we can log it)
 export const logout = asyncHandler(async (req, res) => {
-  await res.clearCookie('accessToken');
-  await res.clearCookie('refreshToken');
-  await res.json(successResponse(
+  res.clearCookie('accessToken');
+  res.clearCookie('refreshToken');
+  res.json(successResponse(
     { loggedOut: true },
     CONSTANTS.SUCCESS.LOGOUT
   ));
