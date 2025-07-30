@@ -168,12 +168,27 @@ class ActivationService {
         },
         include: {
           referrer: true,
+          // Add the referred user information
+          referred: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phoneNumber: true,
+            },
+          },
         },
       });
 
       let processedCount = 0;
 
       for (const referral of pendingReferrals) {
+        // Get the referred user's name
+        const referredUser = referral.referred;
+        const referredUserName = [referredUser.firstName, referredUser.lastName]
+          .filter(Boolean)
+          .join(' ') || referredUser.phoneNumber || 'Unknown User';
+
         // Update referral status
         await tx.referral.update({
           where: { id: referral.id },
@@ -203,11 +218,12 @@ class ActivationService {
             type: `LEVEL_${referral.level}_REFERRAL_BONUS`,
             amount: referral.earningsAmount,
             status: CONSTANTS.TRANSACTION_STATUS.CONFIRMED,
-            description: `Referral bonus for user activation (Level ${referral.level})`,
+            description: `Level ${referral.level} referral bonus from ${referredUserName}'s activation`,
             confirmedAt: new Date(),
             metadata: {
               referralId: referral.id,
               referredUserId: userId,
+              referredUserName: referredUserName,
               level: referral.level,
             },
           },

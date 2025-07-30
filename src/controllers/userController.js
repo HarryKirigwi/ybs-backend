@@ -307,11 +307,26 @@ const processPendingReferralBonuses = async (userId) => {
           totalEarned: true,
         },
       },
+      // Add the referred user information
+      referred: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phoneNumber: true,
+        },
+      },
     },
   });
 
   for (const referral of pendingReferrals) {
     await prisma.$transaction(async (tx) => {
+      // Get the referred user's name
+      const referredUser = referral.referred;
+      const referredUserName = [referredUser.firstName, referredUser.lastName]
+        .filter(Boolean)
+        .join(' ') || referredUser.phoneNumber || 'Unknown User';
+
       // Update referral status to available
       await tx.referral.update({
         where: { id: referral.id },
@@ -328,10 +343,11 @@ const processPendingReferralBonuses = async (userId) => {
           type: `LEVEL_${referral.level}_REFERRAL_BONUS`,
           amount: referral.earningsAmount,
           status: CONSTANTS.TRANSACTION_STATUS.CONFIRMED,
-          description: `Level ${referral.level} referral bonus from ${userId} activation`,
+          description: `Level ${referral.level} referral bonus from ${referredUserName}'s activation`,
           confirmedAt: new Date(),
           metadata: {
             referredUserId: userId,
+            referredUserName: referredUserName,
             referralLevel: referral.level,
             activationDate: new Date().toISOString(),
           },

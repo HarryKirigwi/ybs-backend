@@ -33,7 +33,7 @@ const generateReferralCode = () => {
 
 // Generate referral link
 export const generateReferralLink = (referralCode, baseUrl = process.env.FRONTEND_URL) => {
-  return `${baseUrl}/register?ref=${referralCode}`;
+  return `${baseUrl}/auth/register?ref=${referralCode}`;
 };
 
 // Generate verification code for phone numbers
