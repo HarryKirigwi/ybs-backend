@@ -5,6 +5,7 @@ import {
   activateAccount,
   getDashboard,
   getStatistics,
+  checkActivationStatus,
 } from '../controllers/userController.js';
 import {
   validateProfileUpdateData,
@@ -24,6 +25,7 @@ router.put('/profile', validateProfileUpdateData, updateProfile);
 
 // Account activation
 router.post('/activate', validateActivation, activateAccount);
+router.get('/activation-status/:checkoutRequestId', checkActivationStatus);
 
 // Dashboard and statistics
 router.get('/dashboard', getDashboard);

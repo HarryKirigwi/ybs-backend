@@ -15,10 +15,13 @@ import taskRoutes from './routes/tasks.js';
 import withdrawalRoutes from './routes/withdrawals.js';
 import earningsRoutes from './routes/earnings.js';
 import adminRoutes from './routes/admin.js';
+import mpesaRoutes from './routes/mpesa.js';
 
 // Import middleware
-import { errorHandler } from './middleware/errorHandler.js';
+import { errorHandler, asyncHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { validateActivation } from './middleware/validation.js';
+import { successResponse } from './utils/helpers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -50,7 +53,7 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.FRONTEND_URL || 'http://localhost:3000/',
       'http://localhost:3001',
-      'https://ybslimited.co.ke', // Replace with your actual frontend domain
+      'https://ybslimited.co.ke', // actual frontend domain
     ];
     
     if (allowedOrigins.includes(origin)) {
@@ -129,6 +132,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
 app.use('/api/earnings', earningsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/mpesa', mpesaRoutes);
 
 // Apply password limiter to specific password routes
 app.use('/api/auth/change-password', passwordLimiter);

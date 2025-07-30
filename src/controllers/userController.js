@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma.js';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 import { successResponse, formatPhoneNumber, formatUserResponse } from '../utils/helpers.js';
 import { CONSTANTS } from '../utils/constants.js';
+import { activationService } from '../services/activationService.js';
 
 // Get user profile
 export const getProfile = asyncHandler(async (req, res) => {
@@ -104,64 +105,51 @@ export const updateProfile = asyncHandler(async (req, res, next) => {
 
 // Activate account with M-Pesa payment
 export const activateAccount = asyncHandler(async (req, res, next) => {
-  const { mpesaNumber } = req.body;
+  const { mpesaNumber, amount } = req.body;
   const userId = req.user.id;
 
-  // Check if account is already activated
-  if (req.user.accountStatus === CONSTANTS.ACCOUNT_STATUS.ACTIVE) {
-    return next(new AppError('Account is already activated', 400));
+  // Validate required fields
+  if (!mpesaNumber) {
+    return next(new AppError('M-Pesa number is required', 400));
   }
 
-  // Format M-Pesa number
-  const formattedMpesaNumber = formatPhoneNumber(mpesaNumber);
+  if (!amount) {
+    return next(new AppError('Amount is required', 400));
+  }
 
-  // In a real implementation, you would:
-  // 1. Initiate M-Pesa STK push
-  // 2. Wait for callback confirmation
-  // 3. Update account status and create transaction
+  try {
+    const result = await activationService.initiateActivation(userId, mpesaNumber, amount);
+    
+    res.json(successResponse({
+      initiated: true,
+      transactionId: result.transactionId,
+      checkoutRequestId: result.checkoutRequestId,
+      customerMessage: result.customerMessage,
+      amount: result.amount,
+      mpesaNumber: result.mpesaNumber,
+    }, 'M-Pesa payment initiated. Please check your phone for the payment prompt.'));
+  } catch (error) {
+    return next(error);
+  }
+});
 
-  // For now, we'll simulate the activation
-  const transaction = await prisma.transaction.create({
-    data: {
-      userId,
-      type: CONSTANTS.TRANSACTION_TYPES.ACCOUNT_ACTIVATION,
-      amount: CONSTANTS.ACTIVATION_FEE,
-      status: CONSTANTS.TRANSACTION_STATUS.PENDING,
-      description: `Account activation fee payment via ${formattedMpesaNumber}`,
-      metadata: {
-        mpesaNumber: formattedMpesaNumber,
-        activationFee: CONSTANTS.ACTIVATION_FEE,
-      },
-    },
-  });
+// Check activation status endpoint
+export const checkActivationStatus = asyncHandler(async (req, res, next) => {
+  const { checkoutRequestId } = req.params;
+  const userId = req.user.id;
 
-  // In production, you would wait for M-Pesa confirmation
-  // For demo purposes, we'll activate immediately
-  await prisma.user.update({
-    where: { id: userId },
-    data: { accountStatus: CONSTANTS.ACCOUNT_STATUS.ACTIVE },
-  });
+  try {
+    const status = await activationService.checkActivationStatus(checkoutRequestId);
+    
+    // Ensure user can only check their own transactions
+    if (status.transactionId && status.userId !== userId) {
+      return next(new AppError('Unauthorized', 403));
+    }
 
-  // Update transaction status
-  await prisma.transaction.update({
-    where: { id: transaction.id },
-    data: { 
-      status: CONSTANTS.TRANSACTION_STATUS.CONFIRMED,
-      confirmedAt: new Date(),
-    },
-  });
-
-  // Process pending referral bonuses
-  const processedBonusesCount = await processPendingReferralBonuses(userId);
-
-  res.json(successResponse({
-    activated: true,
-    transactionId: transaction.id,
-    processedReferralBonuses: processedBonusesCount,
-    message: processedBonusesCount > 0 ? 
-      `Account activated! ${processedBonusesCount} referral bonuses have been processed for your referrers.` :
-      'Account activated successfully!',
-  }, CONSTANTS.SUCCESS.ACCOUNT_ACTIVATED));
+    res.json(successResponse(status, 'Activation status retrieved successfully'));
+  } catch (error) {
+    return next(error);
+  }
 });
 
 // Get user dashboard data

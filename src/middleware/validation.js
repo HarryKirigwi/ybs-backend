@@ -14,6 +14,8 @@ import {
   validateRequiredFields,
 } from '../utils/validators.js';
 import { verificationService } from '../services/verificationService.js';
+import { mpesaService } from '../services/mpesaService.js';
+import { activationService } from '../services/activationService.js';
 
 // Generic validation middleware factory
 const createValidationMiddleware = (validatorFunction) => {
@@ -77,7 +79,33 @@ export const validatePhoneVerify = (req, res, next) => {
 
   next();
 };
-export const validateActivation = createValidationMiddleware(validateAccountActivation);
+export const validateActivation = (req, res, next) => {
+  const { mpesaNumber, amount } = req.body;
+
+  const errors = [];
+
+  if (!mpesaNumber) {
+    errors.push('M-Pesa number is required');
+  }
+
+  if (!amount) {
+    errors.push('Amount is required');
+  } else if (amount !== 600) {
+    errors.push('Activation amount must be KSH 600');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        message: 'Validation failed: ' + errors.join(', '),
+        details: errors,
+      },
+    });
+  }
+
+  next();
+};
 export const validateWithdrawal = createValidationMiddleware(validateWithdrawalRequest);
 export const validatePasswordChangeData = createValidationMiddleware(validatePasswordChange);
 export const validateProfileUpdateData = createValidationMiddleware(validateProfileUpdate);
