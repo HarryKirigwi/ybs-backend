@@ -2,6 +2,7 @@ import { AppError } from './errorHandler.js';
 import {
   validateUserRegistration,
   validateUserLogin,
+  validateAdminLogin,
   validatePhoneVerification,
   validateAccountActivation,
   validateWithdrawalRequest,
@@ -48,6 +49,7 @@ const createQueryValidationMiddleware = (validatorFunction) => {
 // User validation middleware
 export const validateRegistration = createValidationMiddleware(validateUserRegistration);
 export const validateLogin = createValidationMiddleware(validateUserLogin);
+export const validateAdminLoginMiddleware = createValidationMiddleware(validateAdminLogin);
 export const validatePhoneVerify = (req, res, next) => {
   const { action, phoneNumber, verificationCode } = req.body;
 

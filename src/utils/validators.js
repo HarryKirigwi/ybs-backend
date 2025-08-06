@@ -430,6 +430,31 @@ export const validateTransactionData = (data) => {
   return result;
 };
 
+// Admin login validation
+export const validateAdminLogin = (data) => {
+  const result = new ValidationResult();
+  const { email, password } = data;
+
+  // Email validation
+  if (!email) {
+    result.addError('email', 'Email is required');
+  } else {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      result.addError('email', 'Invalid email format');
+    }
+  }
+
+  // Password validation
+  if (!password) {
+    result.addError('password', 'Password is required');
+  } else if (password.length < 6) {
+    result.addError('password', 'Password must be at least 6 characters long');
+  }
+
+  return result;
+};
+
 export default {
   ValidationError,
   ValidationResult,
@@ -445,5 +470,6 @@ export default {
   validateAdminUser,
   validateDateRange,
   validateRequiredFields,
-  validateTransactionData, // Add to default export
+  validateTransactionData,
+  validateAdminLogin,
 };

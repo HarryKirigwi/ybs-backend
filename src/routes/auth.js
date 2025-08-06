@@ -14,6 +14,7 @@ import {
 import {
   validateRegistration,
   validateLogin,
+  validateAdminLoginMiddleware,
   validatePhoneVerify,
   validatePasswordChangeData,
 } from '../middleware/validation.js';
@@ -24,7 +25,7 @@ const router = express.Router();
 // Public routes
 router.post('/register', validateRegistration, register);
 router.post('/login', validateLogin, login);
-router.post('/admin/login', validateLogin, adminLogin);
+router.post('/admin/login', validateAdminLoginMiddleware, adminLogin);
 router.post('/verify-phone', validatePhoneVerify, verifyPhone);
 router.post('/refresh-token', refreshToken);
 router.post('/admin/refresh-token', adminRefreshToken);
