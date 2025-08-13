@@ -18,6 +18,7 @@ import {
   createUser,
   deleteUser,
   updateUser,
+  deleteAdmin,
 } from '../controllers/adminController.js';
 import {
   validateUserId,
@@ -67,5 +68,6 @@ router.use(requireSuperAdmin);
 router.post('/admins', validateAdminUserData, createAdmin);
 router.get('/admins', validatePaginationQuery, getAdminUsers);
 router.put('/admins/:adminId/status', validateRequired(['isActive']), updateAdminStatus);
+router.delete('/admins/:adminId', deleteAdmin);
 
 export default router;
