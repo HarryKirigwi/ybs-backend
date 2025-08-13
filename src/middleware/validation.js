@@ -13,6 +13,8 @@ import {
   validateAdminUser,
   validateDateRange,
   validateRequiredFields,
+  validateAdminUserUpdate,
+  validateAdminUserCreation,
 } from '../utils/validators.js';
 import { verificationService } from '../services/verificationService.js';
 import { mpesaService } from '../services/mpesaService.js';
@@ -111,6 +113,8 @@ export const validateActivation = (req, res, next) => {
 export const validateWithdrawal = createValidationMiddleware(validateWithdrawalRequest);
 export const validatePasswordChangeData = createValidationMiddleware(validatePasswordChange);
 export const validateProfileUpdateData = createValidationMiddleware(validateProfileUpdate);
+export const validateAdminUserUpdateData = createValidationMiddleware(validateAdminUserUpdate);
+export const validateAdminUserCreationData = createValidationMiddleware(validateAdminUserCreation);
 export const validateSale = createValidationMiddleware(validateProductSale);
 export const validateAdminUserData = createValidationMiddleware(validateAdminUser);
 
@@ -134,6 +138,16 @@ export const validateUserId = (req, res, next) => {
   
   if (!userId || typeof userId !== 'string') {
     return next(new AppError('Invalid user ID format', 400));
+  }
+  
+  next();
+};
+
+export const validateAdminId = (req, res, next) => {
+  const { adminId } = req.params;
+  
+  if (!adminId || typeof adminId !== 'string') {
+    return next(new AppError('Invalid admin ID format', 400));
   }
   
   next();

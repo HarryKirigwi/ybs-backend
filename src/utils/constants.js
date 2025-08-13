@@ -99,6 +99,33 @@ export const CONSTANTS = {
     DEFAULT_PAGE_SIZE: 20,
     MAX_PAGE_SIZE: 100,
     
+    // Admin role permissions
+    ROLE_PERMISSIONS: {
+      SUPER_ADMIN: [
+        'user:read', 'user:write', 'user:delete',
+        'admin:read', 'admin:write', 'admin:delete',
+        'financial:read', 'financial:write',
+        'analytics:read', 'analytics:write',
+        'system:read', 'system:write',
+        'reports:read', 'reports:write'
+      ],
+      ADMIN: [
+        'user:read', 'user:write',
+        'financial:read', 'financial:write',
+        'analytics:read',
+        'reports:read'
+      ],
+      MODERATOR: [
+        'user:read', 'user:write',
+        'financial:read',
+        'analytics:read'
+      ],
+      SUPPORT: [
+        'user:read',
+        'financial:read'
+      ]
+    },
+    
     // Referral code generation
     REFERRAL_CODE_LENGTH: 8,
     

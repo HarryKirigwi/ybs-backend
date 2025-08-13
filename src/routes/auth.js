@@ -10,6 +10,8 @@ import {
   logout,
   adminRefreshToken,
   getAdminMe,
+  adminLogout,
+  verifyAdminAuth,
 } from '../controllers/authController.js';
 import {
   validateRegistration,
@@ -30,14 +32,16 @@ router.post('/verify-phone', validatePhoneVerify, verifyPhone);
 router.post('/refresh-token', refreshToken);
 router.post('/admin/refresh-token', adminRefreshToken);
 
-// Protected routes
-router.use(protect); // All routes below require authentication
+// Admin protected routes (must come before user protect middleware)
+router.get('/admin/me', adminProtect, getAdminMe);
+router.get('/admin/auth/verify', adminProtect, verifyAdminAuth);
+router.post('/admin/logout', adminProtect, adminLogout);
+
+// Protected routes (user authentication)
+router.use(protect); // All routes below require user authentication
 
 router.get('/me', getMe);
 router.post('/logout', logout);
 router.post('/change-password', validatePasswordChangeData, changePassword);
-
-// Admin protected routes
-router.get('/admin/me', adminProtect, getAdminMe);
 
 export default router;

@@ -720,3 +720,38 @@ const markDailyLoginTask = async (userId) => {
     console.error('Failed to mark daily login task:', error);
   }
 };
+
+// Admin logout
+export const adminLogout = asyncHandler(async (req, res) => {
+  // For JWT-based auth, we don't need to invalidate tokens on the server
+  // The client should remove the token from storage
+  // But we can log the logout action for audit purposes
+  
+  if (req.admin) {
+    console.log(`Admin ${req.admin.username} logged out at ${new Date().toISOString()}`);
+  }
+
+  res.json(successResponse({}, 'Admin logged out successfully'));
+});
+
+// Admin auth verification endpoint
+export const verifyAdminAuth = asyncHandler(async (req, res) => {
+  // This endpoint is protected by adminProtect middleware
+  // If we reach here, the admin is authenticated
+  const admin = req.admin;
+  
+  // Get admin permissions based on role
+  const permissions = CONSTANTS.ROLE_PERMISSIONS[admin.role] || [];
+  
+  const adminResponse = {
+    ...admin,
+    fullName: [admin.firstName, admin.lastName].filter(Boolean).join(' ') || null,
+    permissions,
+    roleDescription: getRoleDescription(admin.role),
+  };
+
+  res.json(successResponse({
+    admin: adminResponse,
+    authenticated: true,
+  }, 'Admin authentication verified'));
+});

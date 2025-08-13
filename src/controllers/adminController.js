@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma.js';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 import { successResponse, getPaginationParams, getPaginationMeta, hashPassword } from '../utils/helpers.js';
 import { CONSTANTS } from '../utils/constants.js';
+import bcrypt from 'bcryptjs';
 
 // Get dashboard overview
 export const getDashboard = asyncHandler(async (req, res) => {
@@ -71,6 +72,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
       phoneNumber: true,
       firstName: true,
       lastName: true,
+      email: true,
       accountStatus: true,
       createdAt: true,
     },
@@ -136,6 +138,7 @@ export const getUsers = asyncHandler(async (req, res) => {
       { phoneNumber: { contains: search } },
       { firstName: { contains: search, mode: 'insensitive' } },
       { lastName: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
       { referralCode: { contains: search, mode: 'insensitive' } },
     ];
   }
@@ -154,6 +157,7 @@ export const getUsers = asyncHandler(async (req, res) => {
       phoneNumber: true,
       firstName: true,
       lastName: true,
+      email: true,
       referralCode: true,
       accountStatus: true,
       userLevel: true,
@@ -263,6 +267,215 @@ export const updateUserStatus = asyncHandler(async (req, res, next) => {
   });
 
   res.json(successResponse(updatedUser, 'User status updated successfully'));
+});
+
+// Create new user (admin function)
+export const createUser = asyncHandler(async (req, res, next) => {
+  const { phoneNumber, firstName, lastName, email, password, accountStatus = CONSTANTS.ACCOUNT_STATUS.UNVERIFIED } = req.body;
+
+  // Validate required fields
+  if (!phoneNumber || !firstName || !lastName || !password) {
+    return next(new AppError('Phone number, first name, last name, and password are required', 400));
+  }
+
+  // Check if phone number already exists
+  const existingUser = await prisma.user.findUnique({
+    where: { phoneNumber },
+    select: { id: true },
+  });
+
+  if (existingUser) {
+    return next(new AppError('User with this phone number already exists', 400));
+  }
+
+  // Check if email already exists (if provided)
+  if (email) {
+    const existingEmail = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (existingEmail) {
+      return next(new AppError('User with this email already exists', 400));
+    }
+  }
+
+  // Generate referral code
+  const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+  // Hash password
+  const hashedPassword = await hashPassword(password);
+
+  // Create user
+  const newUser = await prisma.user.create({
+    data: {
+      phoneNumber,
+      firstName,
+      lastName,
+      email,
+      passwordHash: hashedPassword,
+      referralCode,
+      accountStatus,
+      userLevel: 'SILVER', // Default level
+      availableBalance: 0,
+      totalEarned: 0,
+      totalWithdrawn: 0,
+      totalReferrals: 0,
+    },
+    select: {
+      id: true,
+      phoneNumber: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      referralCode: true,
+      accountStatus: true,
+      userLevel: true,
+      createdAt: true,
+    },
+  });
+
+  res.status(201).json(successResponse(newUser, 'User created successfully'));
+});
+
+// Delete user (admin function)
+export const deleteUser = asyncHandler(async (req, res, next) => {
+  const { userId } = req.params;
+
+  // Check if user exists
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, accountStatus: true },
+  });
+
+  if (!user) {
+    return next(new AppError('User not found', 404));
+  }
+
+  // Check if user has any active transactions or withdrawals
+  const hasActiveTransactions = await prisma.transaction.findFirst({
+    where: {
+      userId,
+      status: CONSTANTS.TRANSACTION_STATUS.CONFIRMED,
+    },
+  });
+
+  const hasPendingWithdrawals = await prisma.withdrawalRequest.findFirst({
+    where: {
+      userId,
+      status: {
+        in: [CONSTANTS.WITHDRAWAL_STATUS.PENDING, CONSTANTS.WITHDRAWAL_STATUS.PROCESSING],
+      },
+    },
+  });
+
+  if (hasActiveTransactions || hasPendingWithdrawals) {
+    return next(new AppError('Cannot delete user with active transactions or pending withdrawals', 400));
+  }
+
+  // Delete user (this will cascade delete related records)
+  await prisma.user.delete({
+    where: { id: userId },
+  });
+
+  res.json(successResponse({}, 'User deleted successfully'));
+});
+
+// Update user information (admin function)
+export const updateUser = asyncHandler(async (req, res, next) => {
+  const { userId } = req.params;
+  const { firstName, lastName, phoneNumber, email, userLevel, accountStatus } = req.body;
+
+  // Check if user exists
+  const existingUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { 
+      id: true, 
+      phoneNumber: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      userLevel: true,
+      accountStatus: true
+    },
+  });
+
+  if (!existingUser) {
+    return next(new AppError('User not found', 404));
+  }
+
+  // Check if phone number is being changed and if it's already taken
+  if (phoneNumber && phoneNumber !== existingUser.phoneNumber) {
+    const phoneNumberExists = await prisma.user.findFirst({
+      where: {
+        phoneNumber,
+        id: { not: userId },
+      },
+      select: { id: true },
+    });
+
+    if (phoneNumberExists) {
+      return next(new AppError('Phone number is already registered by another user', 400));
+    }
+  }
+
+  // Check if email is being changed and if it's already taken
+  if (email && email !== existingUser.email) {
+    const emailExists = await prisma.user.findFirst({
+      where: {
+        email,
+        id: { not: userId },
+      },
+      select: { id: true },
+    });
+
+    if (emailExists) {
+      return next(new AppError('Email is already registered by another user', 400));
+    }
+  }
+
+  // Validate user level
+  const validUserLevels = ['SILVER', 'GOLD', 'PLATINUM'];
+  if (userLevel && !validUserLevels.includes(userLevel)) {
+    return next(new AppError('Invalid user level', 400));
+  }
+
+  // Validate account status
+  const validAccountStatuses = Object.values(CONSTANTS.ACCOUNT_STATUS);
+  if (accountStatus && !validAccountStatuses.includes(accountStatus)) {
+    return next(new AppError('Invalid account status', 400));
+  }
+
+  // Update user
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(firstName && { firstName }),
+      ...(lastName && { lastName }),
+      ...(phoneNumber && { phoneNumber }),
+      ...(email !== undefined && { email }),
+      ...(userLevel && { userLevel }),
+      ...(accountStatus && { accountStatus }),
+    },
+    select: {
+      id: true,
+      phoneNumber: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      referralCode: true,
+      accountStatus: true,
+      userLevel: true,
+      totalReferrals: true,
+      availableBalance: true,
+      totalEarned: true,
+      totalWithdrawn: true,
+      createdAt: true,
+      lastLogin: true,
+    },
+  });
+
+  res.json(successResponse(updatedUser, 'User updated successfully'));
 });
 
 // Get all withdrawal requests
@@ -525,6 +738,7 @@ export const getAnalytics = asyncHandler(async (req, res) => {
       phoneNumber: true,
       firstName: true,
       lastName: true,
+      email: true,
       totalReferrals: true,
       totalEarned: true,
       userLevel: true,
@@ -769,6 +983,112 @@ export const updateAdminStatus = asyncHandler(async (req, res, next) => {
   res.json(successResponse(updatedAdmin, 'Admin status updated successfully'));
 });
 
+// Update admin information
+export const updateAdmin = asyncHandler(async (req, res, next) => {
+  const { adminId } = req.params;
+  const { firstName, lastName, email, role } = req.body;
+
+  // Validate required fields
+  if (!firstName || !lastName || !email || !role) {
+    return next(new AppError('First name, last name, email, and role are required', 400));
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return next(new AppError('Invalid email format', 400));
+  }
+
+  // Check if admin exists
+  const existingAdmin = await prisma.admin.findUnique({
+    where: { id: adminId },
+    select: { id: true, email: true }
+  });
+
+  if (!existingAdmin) {
+    return next(new AppError('Admin not found', 404));
+  }
+
+  // Check if email is already taken by another admin
+  if (email !== existingAdmin.email) {
+    const emailExists = await prisma.admin.findFirst({
+      where: {
+        email,
+        id: { not: adminId }
+      }
+    });
+
+    if (emailExists) {
+      return next(new AppError('Email is already taken by another admin', 400));
+    }
+  }
+
+  // Validate role
+  const validRoles = ['admin', 'super_admin', 'moderator'];
+  if (!validRoles.includes(role)) {
+    return next(new AppError('Invalid role. Must be admin, super_admin, or moderator', 400));
+  }
+
+  // Update admin
+  const updatedAdmin = await prisma.admin.update({
+    where: { id: adminId },
+    data: {
+      firstName,
+      lastName,
+      email,
+      role,
+      updatedAt: new Date(),
+    },
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      lastLogin: true,
+    },
+  });
+
+  res.json(successResponse(updatedAdmin, 'Admin updated successfully'));
+});
+
+// Delete admin
+export const deleteAdmin = asyncHandler(async (req, res, next) => {
+  const { adminId } = req.params;
+
+  // Check if admin exists
+  const existingAdmin = await prisma.admin.findUnique({
+    where: { id: adminId },
+    select: { id: true, username: true, role: true }
+  });
+
+  if (!existingAdmin) {
+    return next(new AppError('Admin not found', 404));
+  }
+
+  // Prevent deletion of the last super admin
+  if (existingAdmin.role === 'super_admin') {
+    const superAdminCount = await prisma.admin.count({
+      where: { role: 'super_admin' }
+    });
+
+    if (superAdminCount <= 1) {
+      return next(new AppError('Cannot delete the last super admin', 400));
+    }
+  }
+
+  // Delete admin
+  await prisma.admin.delete({
+    where: { id: adminId }
+  });
+
+  res.json(successResponse(null, 'Admin deleted successfully'));
+});
+
 // Generate reports
 export const generateReport = asyncHandler(async (req, res, next) => {
   const { type, startDate, endDate } = req.query;
@@ -934,6 +1254,7 @@ const generateUserReport = async (startDate, endDate) => {
       phoneNumber: true,
       firstName: true,
       lastName: true,
+      email: true,
       totalReferrals: true,
       totalEarned: true,
     },
@@ -1081,6 +1402,7 @@ const generateReferralReport = async (startDate, endDate) => {
       phoneNumber: true,
       firstName: true,
       lastName: true,
+      email: true,
       totalReferrals: true,
     },
   });
@@ -1318,4 +1640,126 @@ export const exportUserData = asyncHandler(async (req, res, next) => {
       exportedBy: req.admin.username,
     }, 'User data exported successfully'));
   }
+});
+
+// Get admin settings
+export const getSettings = asyncHandler(async (req, res) => {
+  // Get admin profile
+  const adminProfile = await prisma.admin.findUnique({
+    where: { id: req.admin.id },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      lastLogin: true,
+      createdAt: true,
+    },
+  });
+
+  // Get system settings (you can store these in a separate table or use environment variables)
+  const systemSettings = {
+    maintenanceMode: process.env.MAINTENANCE_MODE === 'true' || false,
+    registrationEnabled: process.env.REGISTRATION_ENABLED !== 'false', // Default to true
+    withdrawalEnabled: process.env.WITHDRAWAL_ENABLED !== 'false', // Default to true
+    maxWithdrawalAmount: parseInt(process.env.MAX_WITHDRAWAL_AMOUNT) || 50000,
+    minWithdrawalAmount: parseInt(process.env.MIN_WITHDRAWAL_AMOUNT) || 100,
+    referralBonusEnabled: process.env.REFERRAL_BONUS_ENABLED !== 'false', // Default to true
+    emailNotifications: process.env.EMAIL_NOTIFICATIONS === 'true' || false,
+    smsNotifications: process.env.SMS_NOTIFICATIONS === 'true' || false,
+  };
+
+  res.json(successResponse({
+    profile: adminProfile,
+    system: systemSettings,
+  }, 'Settings retrieved successfully'));
+});
+
+// Update admin password
+export const updatePassword = asyncHandler(async (req, res, next) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return next(new AppError('Current password and new password are required', 400));
+  }
+
+  if (newPassword.length < 6) {
+    return next(new AppError('New password must be at least 6 characters long', 400));
+  }
+
+  // Get admin with current password
+  const admin = await prisma.admin.findUnique({
+    where: { id: req.admin.id },
+    select: { passwordHash: true },
+  });
+
+  // Verify current password
+  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, admin.passwordHash);
+  if (!isCurrentPasswordValid) {
+    return next(new AppError('Current password is incorrect', 400));
+  }
+
+  // Hash new password
+  const newPasswordHash = await hashPassword(newPassword);
+
+  // Update password
+  await prisma.admin.update({
+    where: { id: req.admin.id },
+    data: { passwordHash: newPasswordHash },
+  });
+
+  res.json(successResponse(null, 'Password updated successfully'));
+});
+
+// Update system settings
+export const updateSystemSettings = asyncHandler(async (req, res, next) => {
+  const {
+    maintenanceMode,
+    registrationEnabled,
+    withdrawalEnabled,
+    maxWithdrawalAmount,
+    minWithdrawalAmount,
+    referralBonusEnabled,
+    emailNotifications,
+    smsNotifications,
+  } = req.body;
+
+  // Validate withdrawal amounts
+  if (maxWithdrawalAmount !== undefined && maxWithdrawalAmount < 0) {
+    return next(new AppError('Maximum withdrawal amount cannot be negative', 400));
+  }
+
+  if (minWithdrawalAmount !== undefined && minWithdrawalAmount < 0) {
+    return next(new AppError('Minimum withdrawal amount cannot be negative', 400));
+  }
+
+  if (maxWithdrawalAmount !== undefined && minWithdrawalAmount !== undefined && maxWithdrawalAmount < minWithdrawalAmount) {
+    return next(new AppError('Maximum withdrawal amount cannot be less than minimum withdrawal amount', 400));
+  }
+
+  // In a real application, you would store these settings in a database
+  // For now, we'll just return success (you can implement actual storage later)
+  
+  // Example of how you might store these in a settings table:
+  /*
+  await prisma.systemSettings.upsert({
+    where: { key: 'maintenanceMode' },
+    update: { value: maintenanceMode?.toString() },
+    create: { key: 'maintenanceMode', value: maintenanceMode?.toString() },
+  });
+  */
+
+  res.json(successResponse({
+    updatedSettings: {
+      maintenanceMode,
+      registrationEnabled,
+      withdrawalEnabled,
+      maxWithdrawalAmount,
+      minWithdrawalAmount,
+      referralBonusEnabled,
+      emailNotifications,
+      smsNotifications,
+    },
+  }, 'System settings updated successfully'));
 });

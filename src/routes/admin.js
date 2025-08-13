@@ -12,6 +12,9 @@ import {
   getAdminUsers,
   updateAdminStatus,
   generateReport,
+  getSettings,
+  updateSystemSettings,
+  updatePassword,
 } from '../controllers/adminController.js';
 import {
   validateUserId,
@@ -35,6 +38,11 @@ router.get('/dashboard', getDashboard);
 router.get('/analytics', validateDateRangeQuery, getAnalytics);
 router.get('/system-stats', getSystemStats);
 router.get('/reports', validateDateRangeQuery, generateReport);
+
+// Settings
+router.get('/settings', getSettings);
+router.put('/settings', updateSystemSettings);
+router.put('/settings/password', updatePassword);
 
 // User management
 router.get('/users', validatePaginationQuery, getUsers);

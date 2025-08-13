@@ -455,6 +455,151 @@ export const validateAdminLogin = (data) => {
   return result;
 };
 
+// Admin user update validation
+export const validateAdminUserUpdate = (data) => {
+  const result = new ValidationResult();
+  const { firstName, lastName, phoneNumber, email, userLevel, accountStatus } = data;
+
+  // First name validation (optional)
+  if (firstName !== undefined) {
+    if (typeof firstName !== 'string') {
+      result.addError('firstName', 'First name must be a string');
+    } else if (firstName.trim().length === 0) {
+      result.addError('firstName', 'First name cannot be empty');
+    } else if (firstName.trim().length > 50) {
+      result.addError('firstName', 'First name cannot exceed 50 characters');
+    }
+  }
+
+  // Last name validation (optional)
+  if (lastName !== undefined) {
+    if (typeof lastName !== 'string') {
+      result.addError('lastName', 'Last name must be a string');
+    } else if (lastName.trim().length === 0) {
+      result.addError('lastName', 'Last name cannot be empty');
+    } else if (lastName.trim().length > 50) {
+      result.addError('lastName', 'Last name cannot exceed 50 characters');
+    }
+  }
+
+  // Phone number validation (optional)
+  if (phoneNumber !== undefined) {
+    if (typeof phoneNumber !== 'string') {
+      result.addError('phoneNumber', 'Phone number must be a string');
+    } else if (phoneNumber.trim().length === 0) {
+      result.addError('phoneNumber', 'Phone number cannot be empty');
+    } else {
+      const formatted = formatPhoneNumber(phoneNumber);
+      if (!CONSTANTS.PHONE_REGEX.test('+' + formatted)) {
+        result.addError('phoneNumber', 'Invalid phone number format');
+      }
+    }
+  }
+
+  // Email validation (optional)
+  if (email !== undefined) {
+    if (typeof email !== 'string') {
+      result.addError('email', 'Email must be a string');
+    } else if (email.trim().length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        result.addError('email', 'Invalid email format');
+      }
+    }
+  }
+
+  // User level validation (optional)
+  if (userLevel !== undefined) {
+    const validLevels = ['SILVER', 'GOLD', 'PLATINUM'];
+    if (!validLevels.includes(userLevel)) {
+      result.addError('userLevel', 'User level must be one of: SILVER, GOLD, PLATINUM');
+    }
+  }
+
+  // Account status validation (optional)
+  if (accountStatus !== undefined) {
+    const validStatuses = Object.values(CONSTANTS.ACCOUNT_STATUS);
+    if (!validStatuses.includes(accountStatus)) {
+      result.addError('accountStatus', 'Invalid account status');
+    }
+  }
+
+  return result;
+};
+
+// Admin user creation validation
+export const validateAdminUserCreation = (data) => {
+  const result = new ValidationResult();
+  const { firstName, lastName, phoneNumber, email, password, accountStatus } = data;
+
+  // First name validation (required)
+  if (!firstName) {
+    result.addError('firstName', 'First name is required');
+  } else if (typeof firstName !== 'string') {
+    result.addError('firstName', 'First name must be a string');
+  } else if (firstName.trim().length === 0) {
+    result.addError('firstName', 'First name cannot be empty');
+  } else if (firstName.trim().length > 50) {
+    result.addError('firstName', 'First name cannot exceed 50 characters');
+  }
+
+  // Last name validation (required)
+  if (!lastName) {
+    result.addError('lastName', 'Last name is required');
+  } else if (typeof lastName !== 'string') {
+    result.addError('lastName', 'Last name must be a string');
+  } else if (lastName.trim().length === 0) {
+    result.addError('lastName', 'Last name cannot be empty');
+  } else if (lastName.trim().length > 50) {
+    result.addError('lastName', 'Last name cannot exceed 50 characters');
+  }
+
+  // Phone number validation (required)
+  if (!phoneNumber) {
+    result.addError('phoneNumber', 'Phone number is required');
+  } else if (typeof phoneNumber !== 'string') {
+    result.addError('phoneNumber', 'Phone number must be a string');
+  } else if (phoneNumber.trim().length === 0) {
+    result.addError('phoneNumber', 'Phone number cannot be empty');
+  } else {
+    const formatted = formatPhoneNumber(phoneNumber);
+    if (!CONSTANTS.PHONE_REGEX.test('+' + formatted)) {
+      result.addError('phoneNumber', 'Invalid phone number format');
+    }
+  }
+
+  // Email validation (optional)
+  if (email !== undefined) {
+    if (typeof email !== 'string') {
+      result.addError('email', 'Email must be a string');
+    } else if (email.trim().length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        result.addError('email', 'Invalid email format');
+      }
+    }
+  }
+
+  // Password validation (required)
+  if (!password) {
+    result.addError('password', 'Password is required');
+  } else if (typeof password !== 'string') {
+    result.addError('password', 'Password must be a string');
+  } else if (password.length < 6) {
+    result.addError('password', 'Password must be at least 6 characters long');
+  }
+
+  // Account status validation (optional)
+  if (accountStatus !== undefined) {
+    const validStatuses = Object.values(CONSTANTS.ACCOUNT_STATUS);
+    if (!validStatuses.includes(accountStatus)) {
+      result.addError('accountStatus', 'Invalid account status');
+    }
+  }
+
+  return result;
+};
+
 export default {
   ValidationError,
   ValidationResult,
@@ -472,4 +617,6 @@ export default {
   validateRequiredFields,
   validateTransactionData,
   validateAdminLogin,
+  validateAdminUserUpdate,
+  validateAdminUserCreation,
 };

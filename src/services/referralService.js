@@ -160,6 +160,7 @@ export const getReferralChain = async (userId) => {
             phoneNumber: true,
             firstName: true,
             lastName: true,
+            email: true,
             referralCode: true,
             referredBy: true,
           },
@@ -173,6 +174,7 @@ export const getReferralChain = async (userId) => {
               fullName: [level2Referrer.firstName, level2Referrer.lastName]
                 .filter(Boolean).join(' ') || 'Unknown',
               phoneNumber: level2Referrer.phoneNumber,
+              email: level2Referrer.email,
               referralCode: level2Referrer.referralCode,
             },
           });
@@ -186,6 +188,7 @@ export const getReferralChain = async (userId) => {
                 phoneNumber: true,
                 firstName: true,
                 lastName: true,
+                email: true,
                 referralCode: true,
               },
             });
@@ -198,6 +201,7 @@ export const getReferralChain = async (userId) => {
                   fullName: [level3Referrer.firstName, level3Referrer.lastName]
                     .filter(Boolean).join(' ') || 'Unknown',
                   phoneNumber: level3Referrer.phoneNumber,
+                  email: level3Referrer.email,
                   referralCode: level3Referrer.referralCode,
                 },
               });
@@ -216,6 +220,7 @@ export const getReferralChain = async (userId) => {
       phoneNumber: true,
       firstName: true,
       lastName: true,
+      email: true,
       referralCode: true,
       accountStatus: true,
       createdAt: true,
@@ -229,6 +234,7 @@ export const getReferralChain = async (userId) => {
       fullName: [referral.firstName, referral.lastName]
         .filter(Boolean).join(' ') || 'Unknown',
       phoneNumber: referral.phoneNumber,
+      email: referral.email,
       referralCode: referral.referralCode,
       accountStatus: referral.accountStatus,
       joinedAt: referral.createdAt,
