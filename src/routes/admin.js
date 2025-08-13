@@ -15,6 +15,9 @@ import {
   getSettings,
   updateSystemSettings,
   updatePassword,
+  createUser,
+  deleteUser,
+  updateUser,
 } from '../controllers/adminController.js';
 import {
   validateUserId,
@@ -25,6 +28,7 @@ import {
   validatePaginationQuery,
   validateDateRangeQuery,
   validateRequired,
+  validateRegistration,
 } from '../middleware/validation.js';
 import { adminProtect, requireSuperAdmin } from '../middleware/auth.js';
 
@@ -46,8 +50,11 @@ router.put('/settings/password', updatePassword);
 
 // User management
 router.get('/users', validatePaginationQuery, getUsers);
+router.post('/users', validateRegistration, createUser);
 router.get('/users/:userId', validateUserId, getUserDetails);
+router.put('/users/:userId', validateUserId, updateUser);
 router.put('/users/:userId/status', validateUserId, validateUserStatusUpdate, updateUserStatus);
+router.delete('/users/:userId', validateUserId, deleteUser);
 
 // Withdrawal management
 router.get('/withdrawals', validatePaginationQuery, getWithdrawalRequests);
