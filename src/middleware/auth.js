@@ -28,8 +28,8 @@ export const protect = async (req, res, next) => {
         // Set new access token cookie
         res.cookie('accessToken', token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'none',
+          secure: process.env.NODE_ENV === 'production' || req.headers.origin?.startsWith('https://'),
+          sameSite: req.headers.origin?.startsWith('https://') ? 'none' : 'lax',
           maxAge: 15 * 60 * 1000
         });
       } catch (refreshError) {

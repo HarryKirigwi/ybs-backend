@@ -185,9 +185,19 @@ class ActivationService {
       for (const referral of pendingReferrals) {
         // Get the referred user's name
         const referredUser = referral.referred;
-        const referredUserName = [referredUser.firstName, referredUser.lastName]
-          .filter(Boolean)
-          .join(' ') || referredUser.phoneNumber || 'Unknown User';
+        let referredUserName = 'Unknown User';
+        
+        if (referredUser.firstName && referredUser.lastName) {
+          referredUserName = `${referredUser.firstName} ${referredUser.lastName}`;
+        } else if (referredUser.firstName) {
+          referredUserName = referredUser.firstName;
+        } else if (referredUser.lastName) {
+          referredUserName = referredUser.lastName;
+        } else if (referredUser.phoneNumber) {
+          // Use last 4 digits of phone number for privacy
+          const phone = referredUser.phoneNumber;
+          referredUserName = `User ${phone.slice(-4)}`;
+        }
 
         // Update referral status
         await tx.referral.update({

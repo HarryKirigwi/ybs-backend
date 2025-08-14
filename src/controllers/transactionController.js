@@ -3,6 +3,64 @@ import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 import { successResponse, getPaginationParams, getPaginationMeta } from '../utils/helpers.js';
 import { CONSTANTS } from '../utils/constants.js';
 
+// Helper function to transform transaction descriptions
+const transformTransactionDescription = async (transaction) => {
+  // Only process referral bonus transactions
+  if (!transaction.type.includes('REFERRAL_BONUS')) {
+    return transaction;
+  }
+
+  const description = transaction.description;
+  
+  // Check if description contains a user ID pattern
+  const match = description.match(/from ([a-zA-Z0-9]{20,}) activation/);
+  
+  if (match) {
+    const userId = match[1];
+    
+    // Get the user details
+    const referredUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phoneNumber: true,
+      }
+    });
+
+    if (referredUser) {
+      // Generate proper user name
+      let referredUserName = 'Unknown User';
+      
+      if (referredUser.firstName && referredUser.lastName) {
+        referredUserName = `${referredUser.firstName} ${referredUser.lastName}`;
+      } else if (referredUser.firstName) {
+        referredUserName = referredUser.firstName;
+      } else if (referredUser.lastName) {
+        referredUserName = referredUser.lastName;
+      } else if (referredUser.phoneNumber) {
+        // Use last 4 digits of phone number for privacy
+        const phone = referredUser.phoneNumber;
+        referredUserName = `User ${phone.slice(-4)}`;
+      }
+
+      // Replace the user ID with the actual name
+      const newDescription = description.replace(
+        new RegExp(`${userId} activation`),
+        `${referredUserName}'s activation`
+      );
+
+      return {
+        ...transaction,
+        description: newDescription
+      };
+    }
+  }
+
+  return transaction;
+};
+
 // Get user transactions
 export const getTransactions = asyncHandler(async (req, res) => {
   const userId = req.user.id;
@@ -57,10 +115,15 @@ export const getTransactions = asyncHandler(async (req, res) => {
     },
   });
 
+  // Transform transaction descriptions to replace user IDs with names
+  const transformedTransactions = await Promise.all(
+    transactions.map(transaction => transformTransactionDescription(transaction))
+  );
+
   const paginationMeta = getPaginationMeta(total, page, limit);
 
   res.json(successResponse({
-    transactions,
+    transactions: transformedTransactions,
     pagination: paginationMeta,
   }, 'Transactions retrieved successfully'));
 });
@@ -92,7 +155,10 @@ export const getTransaction = asyncHandler(async (req, res, next) => {
     return next(new AppError('Transaction not found', 404));
   }
 
-  res.json(successResponse(transaction, 'Transaction retrieved successfully'));
+  // Transform transaction description to replace user ID with name
+  const transformedTransaction = await transformTransactionDescription(transaction);
+
+  res.json(successResponse(transformedTransaction, 'Transaction retrieved successfully'));
 });
 
 // Get transaction statistics

@@ -4,6 +4,64 @@ import { successResponse, formatPhoneNumber, formatUserResponse } from '../utils
 import { CONSTANTS } from '../utils/constants.js';
 import { activationService } from '../services/activationService.js';
 
+// Helper function to transform transaction descriptions
+const transformTransactionDescription = async (transaction) => {
+  // Only process referral bonus transactions
+  if (!transaction.type.includes('REFERRAL_BONUS')) {
+    return transaction;
+  }
+
+  const description = transaction.description;
+  
+  // Check if description contains a user ID pattern
+  const match = description.match(/from ([a-zA-Z0-9]{20,}) activation/);
+  
+  if (match) {
+    const userId = match[1];
+    
+    // Get the user details
+    const referredUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phoneNumber: true,
+      }
+    });
+
+    if (referredUser) {
+      // Generate proper user name
+      let referredUserName = 'Unknown User';
+      
+      if (referredUser.firstName && referredUser.lastName) {
+        referredUserName = `${referredUser.firstName} ${referredUser.lastName}`;
+      } else if (referredUser.firstName) {
+        referredUserName = referredUser.firstName;
+      } else if (referredUser.lastName) {
+        referredUserName = referredUser.lastName;
+      } else if (referredUser.phoneNumber) {
+        // Use last 4 digits of phone number for privacy
+        const phone = referredUser.phoneNumber;
+        referredUserName = `User ${phone.slice(-4)}`;
+      }
+
+      // Replace the user ID with the actual name
+      const newDescription = description.replace(
+        new RegExp(`${userId} activation`),
+        `${referredUserName}'s activation`
+      );
+
+      return {
+        ...transaction,
+        description: newDescription
+      };
+    }
+  }
+
+  return transaction;
+};
+
 // Get user profile
 export const getProfile = asyncHandler(async (req, res) => {
   const user = await prisma.user.findUnique({
@@ -185,6 +243,11 @@ export const getDashboard = asyncHandler(async (req, res) => {
     },
   });
 
+  // Transform transaction descriptions to replace user IDs with names
+  const transformedRecentTransactions = await Promise.all(
+    recentTransactions.map(transaction => transformTransactionDescription(transaction))
+  );
+
   // Get today's tasks
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -224,7 +287,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
   res.json(successResponse({
     user,
-    recentTransactions,
+    recentTransactions: transformedRecentTransactions,
     todayTasks,
     weeklyChallenge,
     referralStats: referralsByLevel,
@@ -323,9 +386,19 @@ const processPendingReferralBonuses = async (userId) => {
     await prisma.$transaction(async (tx) => {
       // Get the referred user's name
       const referredUser = referral.referred;
-      const referredUserName = [referredUser.firstName, referredUser.lastName]
-        .filter(Boolean)
-        .join(' ') || referredUser.phoneNumber || 'Unknown User';
+      let referredUserName = 'Unknown User';
+      
+      if (referredUser.firstName && referredUser.lastName) {
+        referredUserName = `${referredUser.firstName} ${referredUser.lastName}`;
+      } else if (referredUser.firstName) {
+        referredUserName = referredUser.firstName;
+      } else if (referredUser.lastName) {
+        referredUserName = referredUser.lastName;
+      } else if (referredUser.phoneNumber) {
+        // Use last 4 digits of phone number for privacy
+        const phone = referredUser.phoneNumber;
+        referredUserName = `User ${phone.slice(-4)}`;
+      }
 
       // Update referral status to available
       await tx.referral.update({
