@@ -16,6 +16,8 @@ import withdrawalRoutes from './routes/withdrawals.js';
 import earningsRoutes from './routes/earnings.js';
 import adminRoutes from './routes/admin.js';
 import mpesaRoutes from './routes/mpesa.js';
+import productsRoutes from './routes/products.js';
+import salesRoutes from './routes/sales.js';
 
 // Import middleware
 import { errorHandler, asyncHandler } from './middleware/errorHandler.js';
@@ -44,25 +46,22 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS configuration
+// CORS configuration (production-only domains, no localhost)
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, postman, etc.)
     if (!origin) return callback(null, true);
-    
+
     const allowedOrigins = [
-      process.env.FRONTEND_URL || 'https://localhost:3000',
-      'https://localhost:3000',
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://localhost:3001',
-      'https://ybslimited.co.ke', // actual frontend domain
-    ];
-    
+      process.env.FRONTEND_URL, // e.g. https://ybslimited.co.ke
+      'https://ybslimited.co.ke',
+      'https://www.ybslimited.co.ke',
+    ].filter(Boolean);
+
     // Normalize origin by removing trailing slash for comparison
     const normalizedOrigin = origin.replace(/\/$/, '');
-    const normalizedAllowedOrigins = allowedOrigins.map(origin => origin.replace(/\/$/, ''));
-    
+    const normalizedAllowedOrigins = allowedOrigins.map((o) => o.replace(/\/$/, ''));
+
     if (normalizedAllowedOrigins.includes(normalizedOrigin)) {
       callback(null, true);
     } else {
@@ -142,6 +141,8 @@ app.use('/api/withdrawals', withdrawalRoutes);
 app.use('/api/earnings', earningsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/mpesa', mpesaRoutes);
+app.use('/api/products', productsRoutes);
+app.use('/api/sales', salesRoutes);
 
 // Apply password limiter to specific password routes
 app.use('/api/auth/change-password', passwordLimiter);
@@ -181,6 +182,8 @@ app.get('/', (req, res) => {
       tasks: '/api/tasks',
       withdrawals: '/api/withdrawals',
       earnings: '/api/earnings',
+      products: '/api/products',
+      sales: '/api/sales',
       admin: '/api/admin',
       health: '/health',
     },

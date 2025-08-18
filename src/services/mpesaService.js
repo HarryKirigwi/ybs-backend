@@ -136,6 +136,61 @@ class MpesaService {
     }
   }
 
+  // Initiate generic product/payment STK Push
+  async initiateProductPayment(phoneNumber, amount, reference = null, description = 'YBS Product Purchase') {
+    try {
+      if (!phoneNumber || !amount) {
+        throw new Error('Phone number and amount are required');
+      }
+      if (amount < 1) {
+        throw new Error('Amount must be greater than 0');
+      }
+
+      const formattedPhone = this.validatePhoneNumber(phoneNumber);
+      const accessToken = await this.getAccessToken();
+      const timestamp = generateMpesaTimestamp();
+      const password = generateMpesaPassword(this.shortCode, this.passkey, timestamp);
+
+      const payload = {
+        BusinessShortCode: this.shortCode,
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: 'CustomerPayBillOnline',
+        Amount: amount,
+        PartyA: formattedPhone,
+        PartyB: this.shortCode,
+        PhoneNumber: formattedPhone,
+        CallBackURL: `${this.callbackUrl}/api/mpesa/sale-callback`,
+        AccountReference: reference || `YBS_SALE_${Date.now()}`,
+        TransactionDesc: description,
+      };
+
+      const response = await axios.post(
+        `${this.baseUrl}/mpesa/stkpush/v1/processrequest`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      return {
+        success: true,
+        checkoutRequestId: response.data.CheckoutRequestID,
+        merchantRequestId: response.data.MerchantRequestID,
+        responseCode: response.data.ResponseCode,
+        responseDescription: response.data.ResponseDescription,
+        customerMessage: response.data.CustomerMessage,
+      };
+    } catch (error) {
+      console.error('❌ Error initiating product payment:', error.response?.data || error.message);
+      throw new Error('Failed to initiate payment. Please try again.');
+    }
+  }
+
   // Process activation callback
   async processActivationCallback(callbackData) {
     try {

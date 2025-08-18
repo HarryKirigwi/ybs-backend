@@ -39,7 +39,7 @@ export const CONSTANTS = {
     VIDEOS_TO_WATCH: 3,
     
     // Commission rate for product promotion
-    DEFAULT_COMMISSION_RATE: 0.07, // 7%
+    DEFAULT_COMMISSION_RATE: 0.11, // 11%
     
     // Account statuses
     ACCOUNT_STATUS: {
@@ -181,6 +181,11 @@ export const CONSTANTS = {
     PRODUCT_CATEGORIES: {
       BLOG_WEBSITE: 'blog_website',
       COMPANY_WEBSITE: 'company_website',
+      CUSTOM_SYSTEM: 'custom_system',
+      MOBILE_APP: 'mobile_app',
+      CODING_CLASSES: 'coding_classes',
+      FOREX_TRADING: 'forex_trading',
+      BINARY_OPTIONS: 'binary_options',
       DERIV_TRADING: 'deriv_trading',
       TRADING_BOT: 'trading_bot',
       ACADEMIC_WRITING: 'academic_writing',

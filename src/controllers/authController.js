@@ -557,19 +557,22 @@ export const getMe = asyncHandler(async (req, res) => {
   res.json(successResponse(req.user, 'User profile retrieved successfully'));
 });
 
-// Logout (client-side token removal, but we can log it)
+// Logout (clear http-only cookies; mirror options used when setting them)
 export const logout = asyncHandler(async (req, res) => {
-  // Clear cookies (no need to pass values, just match the options used when setting them)
+  const isHttpsOrigin = req.headers.origin?.startsWith('https://')
+  const secure = process.env.NODE_ENV === 'production' || isHttpsOrigin
+  const sameSite = isHttpsOrigin ? 'none' : 'lax'
+
   res.clearCookie('accessToken', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'none',
+    secure,
+    sameSite,
   });
 
   res.clearCookie('refreshToken', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'none',
+    secure,
+    sameSite,
   });
 
   res.json(successResponse(
